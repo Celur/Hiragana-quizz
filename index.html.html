@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz Hiragana → Romaji</title>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --primary: #4a90e2;
+      --text: #1f2d3d;
+      --muted: #6b7280;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .quiz-card {
+      width: 100%;
+      max-width: 720px;
+      background: var(--card);
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.05);
+      text-align: center;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin: 0 0 12px;
+    }
+    .kana {
+      font-size: 120px;
+      line-height: 1;
+      margin: 16px 0 8px;
+      letter-spacing: 2px;
+    }
+    .hint {
+      color: var(--muted);
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+    .row { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+    input[type="text"] {
+      width: 60%;
+      min-width: 180px;
+      padding: 12px 14px;
+      font-size: 1.1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+    }
+    button {
+      padding: 12px 16px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      background: var(--primary);
+      color: white;
+    }
+    button.secondary {
+      background: #e5e7eb; color: #111;
+    }
+    .progress {
+      margin-top: 8px;
+      color: var(--muted);
+    }
+    .section {
+      display: none;
+    }
+    .section.active { display: block; }
+    .result {
+      font-size: 1.2rem;
+      margin: 6px 0 12px;
+    }
+    @media (max-width: 600px) {
+      .kana { font-size: 88px; }
+      input[type="text"] { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="quiz-card" id="quiz">
+    <h1>Quiz: Hiragana → Romaji</h1>
+    <div class="hint" id="progress-label">Acierta las letras en Romaji</div>
+
+    <div class="kana" id="kana" aria-label="Hiragana actual">あ</div>
+
+    <div class="row" style="margin: 6px 0;">
+      <input type="text" id="answer" placeholder="Escribe Romaji..." autocomplete="off" />
+      <button id="checkBtn" title="Verificar respuesta">Verificar</button>
+    </div>
+
+    <div class="progress" id="progress">Pregunta 1 de 46</div>
+
+    <div id="feedback" class="result" aria-live="polite"></div>
+
+    <div style="margin-top: 12px;">
+      <button id="restartBtn" class="secondary" title="Reiniciar el quiz" style="display:none;">Reiniciar</button>
+    </div>
+  </div>
+
+  <div class="quiz-card section" id="results" aria-label="Resultados">
+    <h1>Resultados</h1>
+    <div class="result" id="final-score" style="font-size:1.4rem; margin-top:8px;"></div>
+    <div class="progress" id="final-details" style="margin-bottom:12px;"></div>
+    <button id="playAgain" title="Jugar de nuevo">Jugar de nuevo</button>
+  </div>
+
+  <script>
+    // Datos: Hiragana básico → Romaji (base 46)
+    const quizData = [
+      { char: 'あ', romaji: ['a'] },
+      { char: 'い', romaji: ['i'] },
+      { char: 'う', romaji: ['u'] },
+      { char: 'え', romaji: ['e'] },
+      { char: 'お', romaji: ['o'] },
+      { char: 'か', romaji: ['ka'] },
+      { char: 'き', romaji: ['ki'] },
+      { char: 'く', romaji: ['ku'] },
+      { char: 'け', romaji: ['ke'] },
+      { char: 'こ', romaji: ['ko'] },
+      { char: 'さ', romaji: ['sa'] },
+      { char: 'し', romaji: ['shi','si'] },
+      { char: 'す', romaji: ['su'] },
+      { char: 'せ', romaji: ['se'] },
+      { char: 'そ', romaji: ['so'] },
+      { char: 'た', romaji: ['ta'] },
+      { char: 'ち', romaji: ['chi','ti'] },
+      { char: 'つ', romaji: ['tsu','tu'] },
+      { char: 'て', romaji: ['te'] },
+      { char: 'と', romaji: ['to'] },
+      { char: 'な', romaji: ['na'] },
+      { char: 'に', romaji: ['ni'] },
+      { char: 'ぬ', romaji: ['nu'] },
+      { char: 'ね', romaji: ['ne'] },
+      { char: 'の', romaji: ['no'] },
+      { char: 'は', romaji: ['ha'] },
+      { char: 'ひ', romaji: ['hi'] },
+      { char: 'ふ', romaji: ['fu'] },
+      { char: 'へ', romaji: ['he'] },
+      { char: 'ほ', romaji: ['ho'] },
+      { char: 'ま', romaji: ['ma'] },
+      { char: 'み', romaji: ['mi'] },
+      { char: 'む', romaji: ['mu'] },
+      { char: 'め', romaji: ['me'] },
+      { char: 'も', romaji: ['mo'] },
+      { char: 'や', romaji: ['ya'] },
+      { char: 'ゆ', romaji: ['yu'] },
+      { char: 'よ', romaji: ['yo'] },
+      { char: 'ら', romaji: ['ra'] },
+      { char: 'り', romaji: ['ri'] },
+      { char: 'る', romaji: ['ru'] },
+      { char: 'れ', romaji: ['re'] },
+      { char: 'ろ', romaji: ['ro'] },
+      { char: 'わ', romaji: ['wa'] },
+      { char: 'を', romaji: ['wo','o'] },
+      { char: 'ん', romaji: ['n'] }
+    ];
+
+    // Estado del quiz
+    let order = [];
+    let idx = 0;
+    let score = 0;
+    let correctCount = 0;
+
+    // Elementos del DOM
+    const kanaEl = document.getElementById('kana');
+    const inputEl = document.getElementById('answer');
+    const checkBtn = document.getElementById('checkBtn');
+    const feedbackEl = document.getElementById('feedback');
+    const progressEl = document.getElementById('progress');
+    const restartBtn = document.getElementById('restartBtn');
+    const quizEl = document.getElementById('quiz');
+    const resultsEl = document.getElementById('results');
+    const finalScoreEl = document.getElementById('final-score');
+    const finalDetailsEl = document.getElementById('final-details');
+    const playAgainBtn = document.getElementById('playAgain');
+    const progressLabel = document.getElementById('progress-label');
+    // Opcional: permitir usar Enter para enviar
+    inputEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSubmit();
+      }
+    });
+
+    // Utilidades
+    function shuffleArray(arr) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function startQuiz() {
+      order = quizData.map((_, i) => i);
+      shuffleArray(order);
+      idx = 0;
+      score = 0;
+      correctCount = 0;
+      resultsEl.style.display = 'none';
+      quizEl.style.display = 'block';
+      restartBtn.style.display = 'inline-block';
+      progressLabel.textContent = 'Acierta las letras en Romaji';
+      renderQuestion();
+      feedbackEl.textContent = '';
+      finalScoreEl.textContent = '';
+      finalDetailsEl.textContent = '';
+      resultsEl.classList.remove('active');
+    }
+
+    function renderQuestion() {
+      const current = quizData[order[idx]];
+      kanaEl.textContent = current.char;
+      inputEl.value = '';
+      inputEl.focus();
+      progressEl.textContent = `Pregunta ${idx + 1} de ${quizData.length}`;
+    }
+
+    function handleSubmit() {
+      const current = quizData[order[idx]];
+      const user = inputEl.value.trim().toLowerCase();
+      const isCorrect = current.romaji.some(r => r.toLowerCase() === user);
+      if (user.length === 0) {
+        feedbackEl.textContent = ' Escribe una respuesta.';
+        return;
+      }
+      if (isCorrect) {
+        score++;
+        correctCount++;
+        feedbackEl.textContent = `Correcto! "${current.char}" → ${current.romaji[0]}${current.romaji.length > 1 ? ' (alternativas: ' + current.romaji.filter(x=>x!==current.romaji[0]).join(', ') + ')' : ''}`;
+      } else {
+        // Respuesta incorrecta: mostrar la(s) correcta(s)
+        feedbackEl.textContent = `Incorrecto. ${current.char} corresponde a ${current.romaji.join('/')} `;
+      }
+
+      idx++;
+      if (idx < quizData.length) {
+        renderQuestion();
+      } else {
+        showResults();
+      }
+    }
+
+    function showResults() {
+      quizEl.style.display = 'none';
+      resultsEl.style.display = 'block';
+      finalScoreEl.textContent = `Puntaje: ${correctCount} de ${quizData.length} (${Math.round((correctCount/quizData.length)*100)}%)`;
+      finalDetailsEl.textContent = `Has acertado ${correctCount} de ${quizData.length} tarjetas.`;
+      progressEl.textContent = '';
+    }
+
+    // Eventos
+    checkBtn.addEventListener('click', handleSubmit);
+    restartBtn.addEventListener('click', startQuiz);
+    playAgainBtn.addEventListener('click', startQuiz);
+
+    // Inicio
+    startQuiz();
+  </script>
+</body>
+</html>
